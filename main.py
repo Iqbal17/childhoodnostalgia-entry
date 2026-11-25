@@ -59,6 +59,16 @@ Writing passes (Pass 2, genuine revisions to the winner):
    dropped -- "...and Mum called us home by our full names, one by one,
    and the fireflies kept going without us" -- because the extra clause
    explains the ache instead of letting the last words carry it.
+
+Pass 3 (revision pass, output line unchanged):
+   The gate claimed "exactly one sentence" but never counted sentences --
+   it only rejected newlines. A count_sentences() helper was added and
+   wired into check_gate, so the one-sentence claim is now actually
+   enforced (ENTRY has exactly one terminator: its final full stop).
+   A leading/trailing-whitespace guard was added for the same reason:
+   stray spaces around the line would survive the old checks. ENTRY
+   itself was not touched -- same 130 characters, same single sentence --
+   and the line written to /output/entry.txt is byte-identical to before.
 """
 
 import os
@@ -71,6 +81,16 @@ ENTRY = (
 MAX_CHARS = 280
 
 
+def count_sentences(text):
+    """Count sentence terminators (., !, ?) in the stripped text.
+
+    The entry is one sentence, so exactly one terminator is expected --
+    the final full stop. Any extra terminator means a second sentence
+    slipped in, even if the text is still a single line.
+    """
+    return sum(1 for ch in text.strip() if ch in ".!?")
+
+
 def check_gate(text):
     """Mirror the sealed gate: 1-280 UTF-8 chars, not only whitespace,
     exactly one sentence (a single line)."""
@@ -80,8 +100,15 @@ def check_gate(text):
         raise ValueError("entry must be 1-280 characters, got %d" % len(text))
     if not text.strip():
         raise ValueError("entry must not be only whitespace")
+    if text != text.strip():
+        raise ValueError("entry must not have leading or trailing whitespace")
     if "\n" in text.strip():
         raise ValueError("entry must be a single line")
+    if count_sentences(text) != 1:
+        raise ValueError(
+            "entry must be exactly one sentence, got %d"
+            % count_sentences(text)
+        )
     return True
 
 
